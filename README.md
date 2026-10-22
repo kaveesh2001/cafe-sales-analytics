@@ -39,8 +39,12 @@ Cafe-Sales-Analytics/
 ├── models/
 ├── services/
 ├── utils/
+├── .gitignore
+├── README.md
+├── requirements.txt
 ├── main.py
 └── test.py
+```
 
 ```
 
