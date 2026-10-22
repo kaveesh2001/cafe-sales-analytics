@@ -71,7 +71,11 @@ For Windows PowerShell:
 
 ### 4. Install the Required Packages
 
-Install the Python packages required by the project. A `requirements.txt` file will be added to simplify this step.
+Install the required Python packages using:
+
+```bash
+pip install -r requirements.txt
+```
 
 ### 5. Configure the Database
 
