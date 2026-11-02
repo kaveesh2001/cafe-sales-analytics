@@ -2362,6 +2362,11 @@ class SalesManager:
     # ORDER - UPDATE STATUS
     # =========================================================
 
+
+    # =========================================================
+    # ORDER - UPDATE STATUS (SECURE)
+    # =========================================================
+
     def update_order_status(
         self,
         order_id,
@@ -2371,68 +2376,88 @@ class SalesManager:
         connection = get_connection()
         cursor = connection.cursor()
 
-        valid_statuses = {
-            "Open",
-            "Preparing",
-            "Ready",
-            "Served",
-            "Completed",
-            "Cancelled"
+        # Only allow the next step in the order workflow.
+        valid_transitions = {
+            "Open": "Preparing",
+            "Preparing": "Ready",
+            "Ready": "Served"
         }
-
-        if status not in valid_statuses:
-
-            cursor.close()
-            connection.close()
-
-            return (
-                False,
-                "Invalid order status."
-            )
-
-        query = """
-            UPDATE orders
-            SET status = %s
-            WHERE order_id = %s
-        """
-
-        values = (
-            status,
-            order_id
-        )
 
         try:
 
+            # -------------------------------------------------
+            # GET CURRENT ORDER STATUS
+            # -------------------------------------------------
+
             cursor.execute(
-                query,
-                values
+                """
+                SELECT status
+                FROM orders
+                WHERE order_id = %s
+                FOR UPDATE
+                """,
+                (order_id,)
+            )
+
+            order = cursor.fetchone()
+
+            if order is None:
+
+                return (
+                    False,
+                    "Order not found."
+                )
+
+            current_status = order[0]
+
+            # -------------------------------------------------
+            # CHECK ALLOWED TRANSITION
+            # -------------------------------------------------
+
+            expected_status = valid_transitions.get(
+                current_status
+            )
+
+            if expected_status is None:
+
+                return (
+                    False,
+                    f"Order cannot be updated from "
+                    f"{current_status}."
+                )
+
+            if status != expected_status:
+
+                return (
+                    False,
+                    f"Invalid transition. "
+                    f"Expected {expected_status}."
+                )
+
+            # -------------------------------------------------
+            # UPDATE STATUS
+            # -------------------------------------------------
+
+            cursor.execute(
+                """
+                UPDATE orders
+                SET status = %s
+                WHERE order_id = %s
+                """,
+                (
+                    status,
+                    order_id
+                )
             )
 
             connection.commit()
 
-            if cursor.rowcount > 0:
-
-                message = (
-                    "Order status updated successfully."
-                )
-
-                print(message)
-
-                return (
-                    True,
-                    message
-                )
-
-            message = "Order not found."
-
-            print(message)
-
             return (
-                False,
-                message
+                True,
+                f"Order status updated to {status}."
             )
 
-        except IntegrityError as error:
+        except Exception as error:
 
             connection.rollback()
 
@@ -2445,6 +2470,7 @@ class SalesManager:
 
             cursor.close()
             connection.close()
+
 
 
     # =========================================================
